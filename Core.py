@@ -4,25 +4,31 @@ from itertools import product
 import xlsxwriter
 from datetime import datetime
 from timeit import default_timer as timer
+from Define_API import *
 
-
-def preProcessing(input_str):
+def preProcessing():
+    input_str = '(((ptrSigConfig->usePort == USE_DATA_SYNCH_FNC) 			||\
+					(ptrSigConfig->usePort == USE_DATA_ASYNCH_FNC) 			||\
+					(ptrSigConfig->usePort == USE_DATA_RDBI_PAGED_FNC) 		||\
+					(ptrSigConfig->usePort == USE_DATA_SYNCH_CLIENT_SERVER) 	||\
+					(ptrSigConfig->usePort == USE_DATA_ASYNCH_CLIENT_SERVER)) &&\
+					(ptrControlSigConfig->adrReadDataLengthFnc_pfct != NULL_PTR))'
     global origin_str
     origin_str = input_str
     processed_str = ''.join(input_str.split())
     processed_str_nospace = processed_str
-    processed_str = processed_str.replace("(", " ( ").replace(")", " ) ").replace("&&", " && ").replace("||", " || ")
+    processed_str = processed_str.replace('(', ' ( ').replace(')', ' ) ').replace('&&', ' && ').replace('||', ' || ')
     processed_str_lst = processed_str.split()
 
     condition_lst = find_each_condition(processed_str_lst)
     if (len(condition_lst) == 0):
-        condition_lst = re.findall(r"(?i)\b[a-zA-Z]+\b", processed_str)
+        condition_lst = re.findall(r'(?i)\b[a-zA-Z]+\b', processed_str)
 
     alphabet_lst = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p']
     for i in range(len(condition_lst)):
         processed_str_nospace =  processed_str_nospace.replace(condition_lst[i], alphabet_lst[i])
         
-    processed_str = processed_str_nospace.replace("(", " ( ").replace(")", " ) ").replace("&&", " && ").replace("||", " || ") 
+    processed_str = processed_str_nospace.replace('(', ' ( ').replace(')', ' ) ').replace('&&', ' && ').replace('||', ' || ') 
     processed_str_lst = processed_str.split()
 
     for i in range(len(processed_str_lst)-1):
@@ -33,38 +39,40 @@ def preProcessing(input_str):
                 processed_str_lst[k] = processed_str_lst[k] + str(duplicate_num)
     processed_str = ' '.join(processed_str_lst)
 
-    main(processed_str)
+    # print(condition_lst)
+    # main(processed_str)
 
 def find_each_condition(input_str_lst):
-    (open_lst, close_lst) = ([], [])
-    pre_close = 0
-    return_lst = []
-    for i in range(len(input_str_lst)-1):
-        if (input_str_lst[i] == "("):
-            for k in range(i+1, len(input_str_lst)):
-                if input_str_lst[k] == ')':
-                    temp = input_str_lst[i:k+1]
-                    if ((temp.count("(") == temp.count(")")) and ((temp.count("&&") + temp.count("||")) == 0)):
-                        if (k > pre_close):
-                            open_lst.append(i)
-                            close_lst.append(k)
-                            pre_close = k
+    open_idx_lst, close_idx_lst, condition_lst = InitList(3)
+    last_close_idx = 0
+    input_str_len = len(input_str_lst)
+    
+    for i in range(0, input_str_len-1):
+        if (input_str_lst[i] == '('):
+            for k in range(i+1, input_str_len):
+                if ((input_str_lst[k] == ')') and (k > last_close_idx)):
+                    temp_lst = input_str_lst[i:k+1]
+                    if ((isBrackketBalanced(temp_lst)) and (isBoolOprNotInList(temp_lst))):
+                        open_idx_lst.append(i)
+                        close_idx_lst.append(k)
+                        last_close_idx = k
+                        break
 
-    for i in range (len(open_lst)):
-        temp = input_str_lst[open_lst[i]+1 : close_lst[i]]
-        temp = ''.join(temp)
-        return_lst.append(temp)
-                
-    return (return_lst)
+    for i in range (0, len(open_idx_lst)):
+        condition = input_str_lst[open_idx_lst[i]+1 : close_idx_lst[i]]
+        condition = ''.join(condition)
+        condition_lst.append(condition)
+    return condition_lst
+
 
 def main(bool_str):
     global reduced_str
     alphabet_upper_lst = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P']
     global conditions_lst
-    conditions_lst = re.findall(r"(?i)\b[a-z]+\b", bool_str)
+    conditions_lst = re.findall(r'(?i)\b[a-z]+\b', bool_str)
     for i in range (len(conditions_lst)):
         bool_str = bool_str.replace(conditions_lst[i], alphabet_upper_lst[i])
-    conditions_lst = re.findall(r"(?i)\b[a-z]+\b", bool_str)
+    conditions_lst = re.findall(r'(?i)\b[a-z]+\b', bool_str)
     reduced_str = bool_str
 
     global bool_exp
@@ -73,8 +81,8 @@ def main(bool_str):
 
     try:
         bool_combinations = list(map(list, product([0, 1], repeat=len(conditions_lst))))
-    except Exception:
-        print("Cannot process this expression !")
+    except:
+        print('Cannot process this expression !')
         return
 
     unique_pair_lst = Get_UniquePair_lst(bool_combinations)
@@ -187,7 +195,7 @@ def Split_lst(processed_str_lst, split_factor):
 
 def CalcBoolExp(conditions_lst, bool_exp, bool_array):
     if (len(conditions_lst) != len(bool_array)):
-        print("Cannot calculate boolean expressions")
+        print('Cannot calculate boolean expressions')
     else:
         for condition_index in range(len(conditions_lst)):
             character_index = bool_exp.index(conditions_lst[condition_index])
@@ -219,7 +227,7 @@ def findunique(primary_comb, primary_index, out_prm, bool_combinations):
 
 
 def ConvertFinalTCtoBinTable(final_lst_TC):
-    leading_zeros = "0" + str(len(conditions_lst)) + "b"
+    leading_zeros = '0' + str(len(conditions_lst)) + 'b'
     binary_lst = []
     result_lst = []
     unique_pair_index = []
@@ -239,7 +247,7 @@ def ConvertFinalTCtoBinTable(final_lst_TC):
                     unique_pair_index.append([j,k])
                     break
 
-    latest_file = str(datetime.now().strftime("%H%M%S_%d%m%Y") + '.xlsx')
+    latest_file = str(datetime.now().strftime('%H%M%S_%d%m%Y') + '.xlsx')
     workbook_name = latest_file
     workbook = xlsxwriter.Workbook(workbook_name)
     sheet = workbook.add_worksheet('MCDC Test Cases')
@@ -249,13 +257,13 @@ def ConvertFinalTCtoBinTable(final_lst_TC):
     expr_format = workbook.add_format({'text_wrap': True, 'font_name': 'Arial', 'font_size': 10})
     unique_cell_format = workbook.add_format({'font_name': 'Arial', 'font_size': 10, 'bg_color':'silver','border': 1})
 
-    sheet.write(0, 0, "Input expression: " + origin_str, expr_format)
-    sheet.write(1, 0, "Processed expression: " + reduced_str, expr_format)
+    sheet.write(0, 0, 'Input expression: ' + origin_str, expr_format)
+    sheet.write(1, 0, 'Processed expression: ' + reduced_str, expr_format)
     sheet.set_column(0, 0, 72)  # Width of columns 0 set to 72
 
     for i in range(len(conditions_lst)):
         sheet.write(1, i+1,conditions_lst[i], normal_format)
-    sheet.write(1, len(conditions_lst)+1, "Output", normal_format)
+    sheet.write(1, len(conditions_lst)+1, 'Output', normal_format)
 
 
     for i in range(len(unique_pair_index)): #row
@@ -269,8 +277,11 @@ def ConvertFinalTCtoBinTable(final_lst_TC):
         sheet.write(i+2, len(conditions_lst)+1, int(result_lst[i]), normal_format)
 
     workbook.close()
-    print("Everthing was OK. DONE!")
+    print('Everthing was OK. DONE!')
 
 
 def Open_latest_file():
-    system("start excel.exe " + latest_file)
+    system('start excel.exe ' + latest_file)
+
+
+preProcessing()

@@ -1,0 +1,5 @@
+*.txt
+test.py
+.vscode
+__pycache__
+dist
